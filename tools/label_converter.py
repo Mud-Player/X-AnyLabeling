@@ -1,19 +1,25 @@
 import argparse
 import json
 import os
+import shutil
 import time
 
+import yaml
 from PIL import Image
 from tqdm import tqdm
 from datetime import date
 
+from pathlib import Path
 import numpy as np
 import xml.dom.minidom as minidom
 import xml.etree.ElementTree as ET
+import glob
 
 import sys
 sys.path.append('.')
 from anylabeling.app_info import __version__
+from sklearn.model_selection import train_test_split
+
 
 VERSION = __version__
 
@@ -390,6 +396,8 @@ def main():
     parser.add_argument('--classes', default=None, help='Path to classes.txt file, where each line represent a specific class')
     parser.add_argument('--mode', help='Choose the conversion mode what you need',
                         choices=['custom2voc', 'voc2custom', 'custom2yolo', 'yolo2custom', 'custom2coco', 'coco2custom'])
+    parser.add_argument('--val_size', help='Value size for training')
+
     args = parser.parse_args()
 
     print(f"Starting conversion to {args.mode} format of {args.task}...")
@@ -424,6 +432,44 @@ def main():
             src_file = os.path.join(args.src_path, file_name)
             dst_file = os.path.join(args.dst_path, os.path.splitext(file_name)[0]+'.txt')
             converter.custom_to_yolov5(src_file, dst_file)
+
+        # split dataset to train, test
+        json_names = glob.glob(args.src_path + "/*.json")
+        json_names = [Path(item).stem for item in json_names]
+        train_idxs, val_idxs = train_test_split(range(len(json_names)), test_size=args.val_size)
+        train_json_names = [json_names[train_idx] for train_idx in train_idxs]
+        val_json_names = [json_names[val_idx] for val_idx in val_idxs]
+        dataset_path = Path(args.dst_path) / "YoloDatasets"
+        os.makedirs(dataset_path / "images" / "train", exist_ok=True)
+        os.makedirs(dataset_path / "images" / "val", exist_ok=True)
+        os.makedirs(dataset_path / "images" / "test", exist_ok=True)
+        os.makedirs(dataset_path / "labels" / "train", exist_ok=True)
+        os.makedirs(dataset_path / "labels" / "val", exist_ok=True)
+        os.makedirs(dataset_path / "labels" / "test", exist_ok=True)
+        for file_name in train_json_names:
+            image_file = file_name + ".JPG"
+            shutil.copy(Path(args.src_path)/image_file, dataset_path / "images" / "train" / image_file)
+            label_file = file_name + ".txt"
+            shutil.copy(Path(args.dst_path)/label_file, dataset_path / "labels" / "train" / label_file)
+        for file_name in val_json_names:
+            image_file = file_name + ".JPG"
+            shutil.copy(Path(args.src_path)/image_file, dataset_path / "images" / "test" / image_file)
+            shutil.copy(Path(args.src_path)/image_file, dataset_path / "images" / "val" / image_file)
+            label_file = file_name + ".txt"
+            shutil.copy(Path(args.dst_path)/label_file, dataset_path / "labels" / "test" / label_file)
+            shutil.copy(Path(args.dst_path)/label_file, dataset_path / "labels" / "val" / label_file)
+        with open(Path(dataset_path) / "dataset.yaml", "w+") as f:
+            yaml_data = {
+                "train": str(dataset_path / "images" / "train"),
+                "val": str(dataset_path / "images" / "val"),
+                "test": str(dataset_path / "images" / "val"),
+                "nc": len(converter.classes),
+                "names": converter.classes
+            }
+            dataset_yaml = yaml.dump(yaml_data, f)
+
+
+
     elif args.mode == "yolo2custom":
         img_dic = {}
         for file in os.listdir(args.img_path):
@@ -445,6 +491,7 @@ def main():
     end_time = time.time()
     print(f"Conversion completed successfully: {args.dst_path}")
     print(f"Conversion time: {end_time - start_time:.2f} seconds")
+
 
 if __name__ == '__main__':
     main()
