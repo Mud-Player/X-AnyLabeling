@@ -396,7 +396,8 @@ def main():
     parser.add_argument('--classes', default=None, help='Path to classes.txt file, where each line represent a specific class')
     parser.add_argument('--mode', help='Choose the conversion mode what you need',
                         choices=['custom2voc', 'voc2custom', 'custom2yolo', 'yolo2custom', 'custom2coco', 'coco2custom'])
-    parser.add_argument('--val_size', help='Value size for training')
+    parser.add_argument('--train_size', default='0.9', help='Train size for training')
+    parser.add_argument('--val_size', default='0.1', help='Validate size for training')
 
     args = parser.parse_args()
 
@@ -436,7 +437,7 @@ def main():
         # split dataset to train, test
         json_names = glob.glob(args.src_path + "/*.json")
         json_names = [Path(item).stem for item in json_names]
-        train_idxs, val_idxs = train_test_split(range(len(json_names)), test_size=args.val_size)
+        train_idxs, val_idxs = train_test_split(range(len(json_names)), test_size=float(args.val_size), train_size=float(args.train_size))
         train_json_names = [json_names[train_idx] for train_idx in train_idxs]
         val_json_names = [json_names[val_idx] for val_idx in val_idxs]
         dataset_path = Path(args.dst_path) / "YoloDatasets"
