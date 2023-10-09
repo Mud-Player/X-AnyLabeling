@@ -16,10 +16,10 @@ import xml.etree.ElementTree as ET
 import glob
 
 import sys
+
 sys.path.append('.')
 from anylabeling.app_info import __version__
 from sklearn.model_selection import train_test_split
-
 
 VERSION = __version__
 
@@ -49,6 +49,7 @@ class BaseLabelConverter:
         with Image.open(image_file) as img:
             width, height = img.size
             return width, height
+
 
 class RectLabelConverter(BaseLabelConverter):
 
@@ -216,7 +217,7 @@ class RectLabelConverter(BaseLabelConverter):
 
         for i, class_name in enumerate(self.classes):
             coco_data['categories'].append({
-                "id": i+1,
+                "id": i + 1,
                 "name": class_name,
                 "supercategory": ""
             })
@@ -262,7 +263,7 @@ class RectLabelConverter(BaseLabelConverter):
                 annotation = {
                     "id": annotation_id,
                     "image_id": image_id,
-                    "category_id": class_id+1,
+                    "category_id": class_id + 1,
                     "bbox": [x_min, y_min, width, height],
                     "area": width * height,
                     "iscrowd": 0
@@ -282,7 +283,7 @@ class RectLabelConverter(BaseLabelConverter):
 
         with open(input_file, 'r', encoding='utf-8') as f:
             data = json.load(f)
-            
+
         if not self.classes:
             for cat in data["categories"]:
                 self.classes.append(cat["name"])
@@ -301,9 +302,8 @@ class RectLabelConverter(BaseLabelConverter):
                 "imagePath": img_dic[dic_info["file_name"]],
                 "shapes": []
             }
-        
-        for dic_info in data["annotations"]:
 
+        for dic_info in data["annotations"]:
             bbox = dic_info["bbox"]
             x_min = bbox[0]
             y_min = bbox[1]
@@ -313,7 +313,7 @@ class RectLabelConverter(BaseLabelConverter):
             y_max = y_min + height
 
             shape_info = {
-                "label": self.classes[dic_info["category_id"]-1],
+                "label": self.classes[dic_info["category_id"] - 1],
                 "text": None,
                 "points": [[x_min, y_min], [x_max, y_max]],
                 "group_id": None,
@@ -322,7 +322,7 @@ class RectLabelConverter(BaseLabelConverter):
             }
 
             total_info[dic_info["image_id"]]["shapes"].append(shape_info)
-    
+
         for dic_info in tqdm(total_info.values(), desc='Converting files', unit='file', colour='green'):
             self.reset()
             self.custom_data["shapes"] = dic_info["shapes"]
@@ -330,9 +330,10 @@ class RectLabelConverter(BaseLabelConverter):
             self.custom_data["imageHeight"] = dic_info["imageHeight"]
             self.custom_data["imageWidth"] = dic_info["imageWidth"]
 
-            output_file = os.path.join(output_path, os.path.splitext(dic_info["imagePath"])[0]+".json")
+            output_file = os.path.join(output_path, os.path.splitext(dic_info["imagePath"])[0] + ".json")
             with open(output_file, 'w', encoding='utf-8') as f:
                 json.dump(self.custom_data, f, indent=2, ensure_ascii=False)
+
 
 class PolyLabelConvert(BaseLabelConverter):
 
@@ -350,7 +351,8 @@ class PolyLabelConvert(BaseLabelConverter):
                 points = np.array(shape['points'])
                 class_index = self.classes.index(label)
                 norm_points = points / image_size
-                f.write(f"{class_index} " + " ".join([" ".join([str(cell[0]), str(cell[1])]) for cell in norm_points.tolist()]) + "\n")
+                f.write(f"{class_index} " + " ".join(
+                    [" ".join([str(cell[0]), str(cell[1])]) for cell in norm_points.tolist()]) + "\n")
 
     def yolov5_to_custom(self, input_file, output_file, image_file):
         self.reset()
@@ -387,15 +389,19 @@ class PolyLabelConvert(BaseLabelConverter):
         with open(output_file, 'w', encoding='utf-8') as f:
             json.dump(self.custom_data, f, indent=2, ensure_ascii=False)
 
+
 def main():
     parser = argparse.ArgumentParser(description='Label Converter')
-    parser.add_argument('--task', default='rectangle', choices=['rectangle', 'polygon'], help='Choose the type of task to perform')
+    parser.add_argument('--task', default='rectangle', choices=['rectangle', 'polygon'],
+                        help='Choose the type of task to perform')
     parser.add_argument('--src_path', help='Path to input directory')
     parser.add_argument('--dst_path', help='Path to output directory')
     parser.add_argument('--img_path', help='Path to image directory')
-    parser.add_argument('--classes', default=None, help='Path to classes.txt file, where each line represent a specific class')
+    parser.add_argument('--classes', default=None,
+                        help='Path to classes.txt file, where each line represent a specific class')
     parser.add_argument('--mode', help='Choose the conversion mode what you need',
-                        choices=['custom2voc', 'voc2custom', 'custom2yolo', 'yolo2custom', 'custom2coco', 'coco2custom'])
+                        choices=['custom2voc', 'voc2custom', 'custom2yolo', 'yolo2custom', 'custom2coco',
+                                 'coco2custom'])
     parser.add_argument('--train_size', default='0.9', help='Train size for training')
     parser.add_argument('--val_size', default='0.1', help='Validate size for training')
 
@@ -417,27 +423,43 @@ def main():
         for file_name in tqdm(file_list, desc='Converting files', unit='file', colour='green'):
             if not file_name.endswith('.json'): continue
             src_file = os.path.join(args.src_path, file_name)
-            dst_file = os.path.join(args.dst_path, os.path.splitext(file_name)[0]+'.xml')
+            dst_file = os.path.join(args.dst_path, os.path.splitext(file_name)[0] + '.xml')
             converter.custom_to_voc2017(src_file, dst_file)
     elif args.mode == "voc2custom":
         file_list = os.listdir(args.src_path)
         for file_name in tqdm(file_list, desc='Converting files', unit='file', colour='green'):
             src_file = os.path.join(args.src_path, file_name)
-            dst_file = os.path.join(args.img_path, os.path.splitext(file_name)[0]+'.json')
+            dst_file = os.path.join(args.img_path, os.path.splitext(file_name)[0] + '.json')
             converter.voc2017_to_custom(src_file, dst_file)
     elif args.mode == "custom2yolo":
+        # Preprocessing
+        json_names = glob.glob(args.src_path + "/*.json")
+        conflitcs_jsons = []
+        for json_file in json_names:
+            with open(json_file) as f:
+                json_data = json.load(f)
+                labels = [shapes["label"] for shapes in json_data["shapes"]]
+                if not validate_annotations(labels):
+                    conflitcs_jsons.append(json_file)
+
+        if conflitcs_jsons:
+            for tmp in conflitcs_jsons:
+                print(f"Validate file failed: {tmp}")
+            os.abort()
+
+        # Processing
         file_list = os.listdir(args.src_path)
         os.makedirs(args.dst_path, exist_ok=True)
         for file_name in tqdm(file_list, desc='Converting files', unit='file', colour='green'):
             if not file_name.endswith('.json'): continue
             src_file = os.path.join(args.src_path, file_name)
-            dst_file = os.path.join(args.dst_path, os.path.splitext(file_name)[0]+'.txt')
+            dst_file = os.path.join(args.dst_path, os.path.splitext(file_name)[0] + '.txt')
             converter.custom_to_yolov5(src_file, dst_file)
 
-        # split dataset to train, test
-        json_names = glob.glob(args.src_path + "/*.json")
+        # Post Processing: split dataset to train, test
         json_names = [Path(item).stem for item in json_names]
-        train_idxs, val_idxs = train_test_split(range(len(json_names)), test_size=float(args.val_size), train_size=float(args.train_size))
+        train_idxs, val_idxs = train_test_split(range(len(json_names)), test_size=float(args.val_size),
+                                                train_size=float(args.train_size))
         train_json_names = [json_names[train_idx] for train_idx in train_idxs]
         val_json_names = [json_names[val_idx] for val_idx in val_idxs]
         dataset_path = Path(args.dst_path) / "YoloDatasets"
@@ -449,16 +471,16 @@ def main():
         os.makedirs(dataset_path / "labels" / "test", exist_ok=True)
         for file_name in train_json_names:
             image_file = file_name + ".JPG"
-            shutil.copy(Path(args.src_path)/image_file, dataset_path / "images" / "train" / image_file)
+            shutil.copy(Path(args.src_path) / image_file, dataset_path / "images" / "train" / image_file)
             label_file = file_name + ".txt"
-            shutil.copy(Path(args.dst_path)/label_file, dataset_path / "labels" / "train" / label_file)
+            shutil.copy(Path(args.dst_path) / label_file, dataset_path / "labels" / "train" / label_file)
         for file_name in val_json_names:
             image_file = file_name + ".JPG"
-            shutil.copy(Path(args.src_path)/image_file, dataset_path / "images" / "test" / image_file)
-            shutil.copy(Path(args.src_path)/image_file, dataset_path / "images" / "val" / image_file)
+            shutil.copy(Path(args.src_path) / image_file, dataset_path / "images" / "test" / image_file)
+            shutil.copy(Path(args.src_path) / image_file, dataset_path / "images" / "val" / image_file)
             label_file = file_name + ".txt"
-            shutil.copy(Path(args.dst_path)/label_file, dataset_path / "labels" / "test" / label_file)
-            shutil.copy(Path(args.dst_path)/label_file, dataset_path / "labels" / "val" / label_file)
+            shutil.copy(Path(args.dst_path) / label_file, dataset_path / "labels" / "test" / label_file)
+            shutil.copy(Path(args.dst_path) / label_file, dataset_path / "labels" / "val" / label_file)
         with open(Path(dataset_path) / "dataset.yaml", "w+") as f:
             yaml_data = {
                 "train": str(dataset_path / "images" / "train"),
@@ -470,7 +492,6 @@ def main():
             dataset_yaml = yaml.dump(yaml_data, f)
 
 
-
     elif args.mode == "yolo2custom":
         img_dic = {}
         for file in os.listdir(args.img_path):
@@ -479,7 +500,7 @@ def main():
         file_list = os.listdir(args.src_path)
         for file_name in tqdm(file_list, desc='Converting files', unit='file', colour='green'):
             src_file = os.path.join(args.src_path, file_name)
-            dst_file = os.path.join(args.img_path, os.path.splitext(file_name)[0]+'.json')
+            dst_file = os.path.join(args.img_path, os.path.splitext(file_name)[0] + '.json')
             img_file = os.path.join(args.img_path, img_dic[os.path.splitext(file_name)[0]])
             converter.yolov5_to_custom(src_file, dst_file, img_file)
     elif args.mode == "custom2coco":
@@ -493,6 +514,38 @@ def main():
     print(f"Conversion completed successfully: {args.dst_path}")
     print(f"Conversion time: {end_time - start_time:.2f} seconds")
 
+
+def validate_annotations(lst: list) -> bool:
+    # validate duplicate
+    if len(lst) != len(set(lst)):
+        return False
+
+    # validate different faces conflicts
+    def has_more_than_two_intersection(my_list, my_sets):
+        my_set = set(my_list)
+        count = 0
+        for s in my_sets:
+            if my_set.intersection(s):
+                count += 1
+            if count >= 2:
+                return True
+        return False
+
+    compare_sets = [
+        {"Antenna", "Antenna-Cover", "1001-02A", "1001-02A-Cover", "1005-02C-1A", "1005-02C-1A-Cover",
+         "1005-03C-1A", "1005-03C-1A-QRPanel", "2006-01C-1A", "2006-01C-1A-QRPanel", "2006-01C-2A",
+         "2006-01C-2A-Cover"},
+        {"placeholder-front", "placeholder-front-Cover", "1001-03A", "1001-03A-Cover", "1001-04A", "1001-04A-QRPanel",
+         "1006-02C-1A", "1006-02C-1A-Cover", "2007-01A", "2007-01A-Cover", "placeholder-tail", "placeholder-tail-Cover",
+         "3002-06C", "3002-06C-Cover"}
+    ]
+    if has_more_than_two_intersection(lst, compare_sets):
+        # special case
+        if not has_more_than_two_intersection(
+                lst, [{"Antenna", "Antenna-Cover"}, {"placeholder-front", "placeholder-front-Cover"}]):
+            return False
+
+    return True
 
 if __name__ == '__main__':
     main()
